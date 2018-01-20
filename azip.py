@@ -1,15 +1,47 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
+"""Custom, Python-based compressor
+
+Requires FILE argument OR input from stream.
+
+Don't use this for real.
+
+Usage:
+    azip (--compress | --expand) [FILE] [--out=OUT]
+    azip -h | --help
+    azip --version
+
+ARGS:
+    FILE                A file
+
+Options:
+    -c, --compress
+    -x, --expand
+    -o OUT, --out=OUT   Write output to file instead of stdout.
+    -h, --help          Show this screen.
+    --version           Show version.
 """
 from collections import namedtuple
+from enum import Enum
+import sys
+
+from docopt import docopt
 
 from binary import BinaryPacker, BinaryUnpacker
+
+
+class FileMode(Enum):
+    READ_BINARY = 1
+    READ_UNICODE = 2
+    WRITE_BINARY = 3
+    WRITE_UNICODE = 4
 
 
 Node = namedtuple('Node', ('left', 'right', 'count'))
 Leaf = namedtuple('Leaf', ('ordinal', 'count'))
 TableRow = namedtuple('TableRow', ('ordinal', 'bits'))
+
+VERSION = """azip 1.0.0"""
 
 
 def build_tree(characters):
@@ -107,18 +139,38 @@ def unpack_table(unpacker):
     return table_rows
 
 
+def read(target=None, read_mode=FileMode.READ_UNICODE):
+    if target is None:
+        buff = sys.stdin.buffer if read_mode is FileMode.READ_BINARY else sys.stdin
+        return buff.read()
+    else:
+        mode = 'rb' if read_mode is FileMode.READ_BINARY else 'r'
+        with open(target, mode) as file_handle:
+            return file_handle.read()
+
+
+def write(data, target=None, write_mode=FileMode.WRITE_UNICODE):
+    if target is None:
+        buff = sys.stdout.buffer if write_mode is FileMode.WRITE_BINARY else sys.stdout
+        buff.write(data)
+    else:
+        mode = 'wb' if write_mode is FileMode.WRITE_BINARY else 'w'
+        with open(target, mode) as file_handle:
+            file_handle.write(data)
+
+
 if __name__ == '__main__':
-    # data = 'abbcccñÑẚ'
-    data = 'abbcccc'
+    ARGS = docopt(__doc__, version=VERSION)
 
-    compressed = compress(data)
-    print(compressed)
+    if ARGS['--compress']:
+        READ_MODE = FileMode.READ_UNICODE
+        WRITE_MODE = FileMode.WRITE_BINARY
+        FUNCTION = compress
+    elif ARGS['--expand']:
+        READ_MODE = FileMode.READ_BINARY
+        WRITE_MODE = FileMode.WRITE_UNICODE
+        FUNCTION = decompress
 
-    with open('out.txt', 'wb') as file_handle:
-        file_handle.write(compressed)
-
-    with open('out.txt', 'rb') as file_handle:
-        byte_array = file_handle.read()
-
-    decompressed = decompress(byte_array)
-    print(decompressed)
+    DATA = read(ARGS['FILE'], READ_MODE)
+    OUTPUT = FUNCTION(DATA)
+    write(OUTPUT, ARGS['--out'], WRITE_MODE)
