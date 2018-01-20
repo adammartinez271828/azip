@@ -19,6 +19,12 @@ class BinaryPacker:
     def i_32(self, integer):
         self.i_n(integer, 32)
 
+    def i_16(self, integer):
+        self.i_n(integer, 16)
+
+    def i_8(self, integer):
+        self.i_n(integer, 8)
+
     def i_n(self, integer, num_bits):
         self.binary(list(map(int, self.to_bin(integer, num_bits)))[::-1])
 
@@ -67,6 +73,14 @@ class BinaryUnpacker:
 
     def i_32(self):
         bitstring = self.popnleft(32)[::-1]
+        return int(bitstring, 2)
+
+    def i_16(self):
+        bitstring = self.popnleft(16)[::-1]
+        return int(bitstring, 2)
+
+    def i_8(self):
+        bitstring = self.popnleft(8)[::-1]
         return int(bitstring, 2)
 
     def binary(self, n):

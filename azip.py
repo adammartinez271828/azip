@@ -4,7 +4,7 @@
 """
 from collections import namedtuple
 
-from bin import BinaryPacker, BinaryUnpacker
+from binary import BinaryPacker, BinaryUnpacker
 
 
 Node = namedtuple('Node', ('left', 'right', 'count'))
@@ -57,7 +57,8 @@ def compress(plaintext):
     table = build_table(tree)
     packer = BinaryPacker()
 
-    packer.i_32(len(plaintext) - 1)
+    packer.i_32(len(plaintext))
+    pack_table(table, packer)
 
     for ordinal in [ord(character) for character in plaintext]:
         bits = look_up_ordinal(table, ordinal)
@@ -75,12 +76,35 @@ def look_up_bits(table, unpacker):
     raise RuntimeError('Couldn\'t match next bits!')
 
 
-def decompress(table, ciphertext):
+def decompress(ciphertext):
     unpacker = BinaryUnpacker(ciphertext)
 
     data_length = unpacker.i_32()
 
-    return ''.join([chr(look_up_bits(table, unpacker)) for _ in range(data_length + 1)])
+    table = unpack_table(unpacker)
+
+    return ''.join([chr(look_up_bits(table, unpacker)) for _ in range(data_length)])
+
+
+def pack_table(table, packer):
+    packer.i_16(len(table) - 1)
+    for row in table:
+        packer.i_16(row.ordinal)
+        packer.i_16(len(row.bits))
+        packer.binary(row.bits)
+
+
+def unpack_table(unpacker):
+    table_length = unpacker.i_16()
+
+    table_rows = []
+    for _ in range(table_length + 1):
+        ordinal = unpacker.i_16()
+        num_bits = unpacker.i_16()
+        bits = list(map(int, unpacker.binary(num_bits)))
+        table_rows.append(TableRow(ordinal, bits))
+
+    return table_rows
 
 
 if __name__ == '__main__':
@@ -89,5 +113,12 @@ if __name__ == '__main__':
 
     compressed = compress(data)
     print(compressed)
-    decompressed = decompress(build_table(build_tree(data)), compressed)
+
+    with open('out.txt', 'wb') as file_handle:
+        file_handle.write(compressed)
+
+    with open('out.txt', 'rb') as file_handle:
+        byte_array = file_handle.read()
+
+    decompressed = decompress(byte_array)
     print(decompressed)
