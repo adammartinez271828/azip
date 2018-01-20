@@ -84,15 +84,15 @@ def look_up_ordinal(table, ordinal):
     raise RuntimeError('Bits lookup failed for {}'.format(ordinal))
 
 
-def compress(plaintext):
+def compress(data):
     tree = build_tree(data)
     table = build_table(tree)
     packer = BinaryPacker()
 
-    packer.i_32(len(plaintext))
+    packer.i_32(len(data))
     pack_table(table, packer)
 
-    for ordinal in [ord(character) for character in plaintext]:
+    for ordinal in [ord(character) for character in data]:
         bits = look_up_ordinal(table, ordinal)
         packer.binary(bits)
 
@@ -108,8 +108,8 @@ def look_up_bits(table, unpacker):
     raise RuntimeError('Couldn\'t match next bits!')
 
 
-def decompress(ciphertext):
-    unpacker = BinaryUnpacker(ciphertext)
+def decompress(data):
+    unpacker = BinaryUnpacker(data)
 
     data_length = unpacker.i_32()
 
